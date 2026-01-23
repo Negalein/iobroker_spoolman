@@ -1,45 +1,76 @@
-
 # 🧵 ioBroker – Klipper – Spoolman Integration
 
-Verbindet **Klipper / Moonraker**, **Spoolman** und **ioBroker** zu einem
-vollautomatischen Filament-Monitoring-System mit:
-
-- 🟢🟡🔴 Ampel-Status je aktiver Spule  
-- 📊 VIS-Visualisierung  
-- 🔔 Telegram-Warnungen  
-- 🧠 Druck- & Zeitfenster-Logik  
+Automatische Filamentüberwachung für 3D‑Drucker mit Klipper, Spoolman und ioBroker.
 
 ---
 
-## ✨ Features
-
-- Unterstützung für **bis zu 4 Extruder / Spulen**
-- Spool-ID direkt aus **Klipper / Moonraker**
-- Restfilament-Berechnung über **Spoolman**
-- Automatische State-Erstellung in ioBroker
-- Telegram:
-  - 🟡 Vorwarnung (z. B. < 300 g)
-  - 🔴 Leer-Alarm (z. B. < 100 g)
-- Warnungen **nur wenn Druck läuft**
-- Zeitfenster:
-  - Werktag / Wochenende getrennt
-- VIS-freundliche Struktur
+## Features
+- 🟢🟡🔴 Ampelstatus je Spule
+- bis zu 4 Extruder
+- Restfilament aus Spoolman (SQLite via SSH)
+- Telegram Warnungen
+- Warnungen nur wenn Druck läuft
+- Zeitfenster (Woche / Wochenende)
+- VIS‑optimierte States
 
 ---
 
-## 📦 Architektur
+## Architektur
+Klipper → Moonraker → ioBroker → SSH → Spoolman
 
-```text
-Klipper GUI
-   ↓ (Spool-ID)
-Moonraker Adapter
-   ↓
-ioBroker JavaScript
-   ↓ (SSH)
-Spoolman SQLite
-```
 ---
-## ⚠️ Wichtig:
-Klipper schreibt Filamentverbrauch nach Spoolman.
-Spoolman berechnet die Restmenge.
-ioBroker liest nur aus.
+
+## Voraussetzungen
+- ioBroker + javascript
+- telegram
+- klipper-moonraker
+- Spoolman
+- SSH Zugriff
+
+---
+
+## Wichtige Pfade
+Spoolman DB:
+/root/.local/share/spoolman/spoolman.db
+
+Klipper Spool IDs:
+klipper-moonraker.0.gcode_macro T0.spool_id … T3.spool_id
+
+---
+
+## States
+Basis: 0_userdata.0.3DDrucker.Spoolman
+
+### Global
+| State | Typ |
+|-------|-----|
+| warnzeit_aktiv | boolean |
+| druck_laeuft | boolean |
+
+### aktiv.X
+| State | Typ |
+|---------|------|
+| active | boolean |
+| extruder | string |
+| spool_id | number |
+| name | string |
+| material | string |
+| remaining_weight | number |
+| status | OK/WARN/LEER |
+| warnung | boolean |
+| alarm | boolean |
+
+---
+
+## Ampel
+OK ≥ 300g
+WARN < 300g
+LEER < 100g
+
+---
+
+## Version
+v1.0.0 – Initial Stable Release
+
+## License
+MIT
