@@ -1,3 +1,4 @@
+
 # 🧵 ioBroker – Klipper – Spoolman Integration
 
 Verbindet **Klipper / Moonraker**, **Spoolman** und **ioBroker** zu einem
@@ -36,10 +37,9 @@ Moonraker Adapter
 ioBroker JavaScript
    ↓ (SSH)
 Spoolman SQLite
-
+```
 ---
-
-⚠️ Wichtig:
+## ⚠️ Wichtig:
 Klipper schreibt Filamentverbrauch nach Spoolman.
 Spoolman berechnet die Restmenge.
 ioBroker liest nur aus.
