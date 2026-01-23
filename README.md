@@ -63,9 +63,9 @@ Basis: 0_userdata.0.3DDrucker.Spoolman
 ---
 
 ## Ampel
-OK ≥ 300g
-WARN < 300g
-LEER < 100g
+- OK ≥ 300g
+- WARN < 300g
+- LEER < 100g
 
 ---
 
