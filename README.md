@@ -36,3 +36,10 @@ Moonraker Adapter
 ioBroker JavaScript
    ↓ (SSH)
 Spoolman SQLite
+
+---
+
+⚠️ Wichtig:
+Klipper schreibt Filamentverbrauch nach Spoolman.
+Spoolman berechnet die Restmenge.
+ioBroker liest nur aus.
