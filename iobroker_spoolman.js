@@ -4,7 +4,7 @@
  * ============================================================
  *
  * Version:   1.0.0
- * Author:    <DEIN NAME / GITHUB>
+ * Author:    <Negalein>
  * License:   MIT
  *
  * Description:
