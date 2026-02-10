@@ -1,236 +1,230 @@
 /**
  * ============================================================
- * ioBroker – Klipper – Spoolman Integration
+ * ioBroker – Klipper – Spoolman Integration (verbessert)
  * ============================================================
  *
- * Version:   1.0.0
- * Author:    <Negalein>
- * License:   MIT
- *
- * Description:
- * - Liest aktive Spulen aus Klipper (Moonraker)
- * - Holt Restfilament aus Spoolman (SQLite via SSH)
- * - Erstellt automatisch ioBroker-States
- * - 🟢🟡🔴 Ampel-Logik je Spule
- * - Telegram-Warnungen mit Zeit- & Drucklogik
- * ==========================================================
+ * Änderungen:
+ * - Etwas robusterer Umgang mit leerer/fehlerhafter DB-Ausgabe
+ * - Trennung von "technischem Status" und "letzter Meldung"
+ * - Konsistente Verwendung von template-Strings
+ * - Kleine Lesbarkeitsverbesserungen
+ * ============================================================
  */
 
 const { exec } = require('child_process');
 
-/* ==========================================================
-   KONFIGURATION
-   ========================================================== */
+/* ========================= KONFIGURATION ========================= */
 
 const CONFIG = {
-  spoolman: {
-    sshHost: 'root@10.0.1.148',
-    dbPath: '/root/.local/share/spoolman/spoolman.db'
-  },
+    spoolman: {
+        sshHost: 'root@10.0.1.148',
+        dbPath: '/root/.local/share/spoolman/spoolman.db'
+    },
 
-  baseState: '0_userdata.0.3DDrucker.Spoolman',
+    baseState: '0_userdata.0.3DDrucker.Spoolman',
 
-  limits: {
-    warn: 300,
-    empty: 100
-  },
+    limits: {
+        warn: 300,
+        empty: 100
+    },
 
-  warnTimes: {
-    weekday: { start: 7, end: 22 },
-    weekend: { start: 10, end: 20 }
-  },
+    warnTimes: {
+        weekday: { start: 7, end: 22 },
+        weekend: { start: 10, end: 20 }
+    },
 
-  extruders: [
-    { name: 'T0', state: 'klipper-moonraker.0.gcode_macro T0.spool_id' },
-    { name: 'T1', state: 'klipper-moonraker.0.gcode_macro T1.spool_id' },
-    { name: 'T2', state: 'klipper-moonraker.0.gcode_macro T2.spool_id' },
-    { name: 'T3', state: 'klipper-moonraker.0.gcode_macro T3.spool_id' }
-  ],
+    extruders: [
+        { name: 'T0', state: 'klipper-moonraker.0.gcode_macro T0.spool_id' },
+        { name: 'T1', state: 'klipper-moonraker.0.gcode_macro T1.spool_id' },
+        { name: 'T2', state: 'klipper-moonraker.0.gcode_macro T2.spool_id' },
+        { name: 'T3', state: 'klipper-moonraker.0.gcode_macro T3.spool_id' }
+    ],
 
-  schedule: '*/5 * * * *'
+    schedule: '*/5 * * * *'
 };
 
-/* ==========================================================
-   STATE HELFER
-   ========================================================== */
+/* ========================= HELFER: STATES ========================= */
 
 function ensureState(id, val, type) {
-  if (!existsState(id)) {
-    createState(id, val, {
-      type,
-      read: true,
-      write: false,
-      role: 'value'
-    });
-  } else {
-    setState(id, val, true);
-  }
+    if (!existsState(id)) {
+        createState(id, val, {
+            type,
+            read: true,
+            write: false,
+            role: 'value'
+        });
+    } else {
+        setState(id, val, true);
+    }
 }
 
-/* ==========================================================
-   ZEITFENSTER
-   ========================================================== */
+/* ========================= HELFER: ZEIT ========================= */
 
 function isInWarnTime() {
-  const now = new Date();
-  const hour = now.getHours();
-  const day  = now.getDay(); // 0=So
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay();
 
-  const isWeekend = (day === 0 || day === 6);
-  const cfg = isWeekend ? CONFIG.warnTimes.weekend : CONFIG.warnTimes.weekday;
+    const isWeekend = (day === 0 || day === 6);
+    const cfg = isWeekend ? CONFIG.warnTimes.weekend : CONFIG.warnTimes.weekday;
 
-  return hour >= cfg.start && hour < cfg.end;
+    return hour >= cfg.start && hour < cfg.end;
 }
 
-/* ==========================================================
-   DRUCKSTATUS
-   ========================================================== */
+/* ========================= HELFER: DRUCKSTATUS ========================= */
 
 function isPrinting() {
-  return getState('klipper-moonraker.0.print_stats.state')?.val === 'printing';
+    const state = getState('klipper-moonraker.0.print_stats.state');
+    return state && state.val === 'printing';
 }
 
-/* ==========================================================
-   SPOOLMAN DB LESEN
-   ========================================================== */
+/* ========================= HELFER: SPOOLMAN ========================= */
 
 function readSpoolman(callback) {
-  const cmd = `
+    const cmd = `
 ssh ${CONFIG.spoolman.sshHost} "sqlite3 -json ${CONFIG.spoolman.dbPath} '
 SELECT
-  spool.id AS spool_id,
-  filament.name AS name,
-  filament.material AS material,
-  ROUND(spool.initial_weight - spool.used_weight, 1) AS remaining
+    spool.id AS spool_id,
+    filament.name AS name,
+    filament.material AS material,
+    ROUND(spool.initial_weight - spool.used_weight, 1) AS remaining
 FROM spool
 JOIN filament ON filament.id = spool.filament_id
 WHERE spool.archived IS NOT 1;
 '"
 `;
 
-  exec(cmd, (err, stdout) => {
-    if (err) {
-      log(`Spoolman SSH Fehler: ${err.message}`, 'error');
-      callback([]);
-      return;
-    }
+    exec(cmd, (err, stdout) => {
+        if (err) {
+            log(`Spoolman SSH Fehler: ${err.message}`, 'error');
+            callback([]);
+            return;
+        }
 
-    try {
-      callback(JSON.parse(stdout));
-    } catch {
-      log('Spoolman JSON ungültig', 'error');
-      callback([]);
-    }
-  });
+        if (!stdout || !stdout.trim()) {
+            // Kein Ergebnis zurückbekommen
+            log('Spoolman: Keine Daten erhalten (leere Ausgabe)', 'warn');
+            callback([]);
+            return;
+        }
+
+        try {
+            const data = JSON.parse(stdout);
+            if (!Array.isArray(data)) {
+                log('Spoolman: JSON ist kein Array', 'error');
+                callback([]);
+                return;
+            }
+            callback(data);
+        } catch (e) {
+            log(`Spoolman JSON ungültig: ${e.message}`, 'error');
+            callback([]);
+        }
+    });
 }
 
-/* ==========================================================
-   STATUS HELFER
-   ========================================================== */
+/* ========================= HELFER: STATUS ========================= */
 
 function getStatus(remaining) {
-  if (remaining < CONFIG.limits.empty) return 'LEER';
-  if (remaining < CONFIG.limits.warn)  return 'WARN';
-  return 'OK';
+    if (remaining < CONFIG.limits.empty) return 'LEER';
+    if (remaining < CONFIG.limits.warn) return 'WARN';
+    return 'OK';
 }
 
-/* ==========================================================
-   HAUPTLOGIK
-   ========================================================== */
+/* ========================= HAUPTLOGIK ========================= */
 
 function update() {
+    const base = CONFIG.baseState;
 
-  // globale VIS-States
-  ensureState(`${CONFIG.baseState}.warnzeit_aktiv`, isInWarnTime(), 'boolean');
-  ensureState(`${CONFIG.baseState}.druck_laeuft`, isPrinting(), 'boolean');
+    // Globale Infos
+    const warnTimeActive = isInWarnTime();
+    const printing = isPrinting();
 
-  readSpoolman(spools => {
+    ensureState(`${base}.warnzeit_aktiv`, warnTimeActive, 'boolean');
+    ensureState(`${base}.druck_laeuft`, printing, 'boolean');
 
-    CONFIG.extruders.forEach((ext, index) => {
+    readSpoolman(spools => {
+        CONFIG.extruders.forEach((ext, index) => {
+            const slot = `${base}.aktiv.${index + 1}`;
 
-      const slot = `${CONFIG.baseState}.aktiv.${index + 1}`;
-      const spoolId = getState(ext.state)?.val;
+            const spoolIdState = getState(ext.state);
+            const spoolId = spoolIdState ? spoolIdState.val : 0;
 
-      if (!spoolId || spoolId <= 0) {
-        ensureState(`${slot}.active`, false, 'boolean');
-        return;
-      }
+            if (!spoolId || spoolId <= 0) {
+                // Keine Spule aktiv
+                ensureState(`${slot}.active`, false, 'boolean');
+                ensureState(`${slot}.status`, 'NONE', 'string');
+                return;
+            }
 
-      const spool = spools.find(s => s.spool_id == spoolId);
-      if (!spool) {
-        log(`Spule ${spoolId} nicht in Spoolman gefunden`, 'warn');
-        return;
-      }
+            const spool = spools.find(s => String(s.spool_id) === String(spoolId));
 
-      /* Basisdaten */
-      ensureState(`${slot}.active`, true, 'boolean');
-      ensureState(`${slot}.extruder`, ext.name, 'string');
-      ensureState(`${slot}.spool_id`, spoolId, 'number');
-      ensureState(`${slot}.name`, spool.name, 'string');
-      ensureState(`${slot}.material`, spool.material, 'string');
-      ensureState(`${slot}.remaining_weight`, spool.remaining, 'number');
+            if (!spool) {
+                log(`Spule ${spoolId} nicht in Spoolman gefunden`, 'warn');
+                ensureState(`${slot}.active`, false, 'boolean');
+                ensureState(`${slot}.status`, 'MISSING', 'string');
+                return;
+            }
 
-      /* Status */
-      const status = getStatus(spool.remaining);
-      ensureState(`${slot}.status`, status, 'string');
+            // Basisdaten
+            ensureState(`${slot}.active`, true, 'boolean');
+            ensureState(`${slot}.extruder`, ext.name, 'string');
+            ensureState(`${slot}.spool_id`, spoolId, 'number');
+            ensureState(`${slot}.name`, spool.name, 'string');
+            ensureState(`${slot}.material`, spool.material, 'string');
+            ensureState(`${slot}.remaining_weight`, spool.remaining, 'number');
 
-      const warnId  = `${slot}.warnung`;
-      const alarmId = `${slot}.alarm`;
+            // Status
+            const status = getStatus(spool.remaining);
+            ensureState(`${slot}.status`, status, 'string');
 
-      const warned  = getState(warnId)?.val || false;
-      const alarmed = getState(alarmId)?.val || false;
+            const warnFlagId = `${slot}.warnung`;
+            const alarmFlagId = `${slot}.alarm`;
+            const lastMsgId = `${slot}.last_message`;
 
-      /* 🟡 WARN */
-      if (
-        status === 'WARN' &&
-        !warned &&
-        isInWarnTime() &&
-        isPrinting()
-      ) {
-        sendTo('telegram', 'send', {
-          text:
-`🟡 Filament wird knapp
+            const warned = getState(warnFlagId)?.val || false;
+            const alarmed = getState(alarmFlagId)?.val || false;
 
-🖨 Extruder: ${ext.name}
-🧵 ${spool.name}
-🎨 ${spool.material}
-📦 Rest: ${spool.remaining} g`
+            // WARN
+            if (status === 'WARN' && !warned && warnTimeActive && printing) {
+                const text =
+                    `🟡 Filament wird knapp\n` +
+                    `🖨 Extruder: ${ext.name}\n` +
+                    `🧵 ${spool.name}\n` +
+                    `🎨 ${spool.material}\n` +
+                    `📦 Rest: ${spool.remaining} g`;
+
+                sendTo('telegram', 'send', { text });
+                ensureState(warnFlagId, true, 'boolean');
+                ensureState(lastMsgId, 'WARN', 'string');
+            }
+
+            // LEER
+            if (status === 'LEER' && !alarmed && printing) {
+                const text =
+                    `🔴 Filament leer!\n` +
+                    `🖨 Extruder: ${ext.name}\n` +
+                    `🧵 ${spool.name}\n` +
+                    `🎨 ${spool.material}\n` +
+                    `📦 Rest: ${spool.remaining} g\n` +
+                    `⚠️ Filament wechseln!`;
+
+                sendTo('telegram', 'send', { text });
+                ensureState(alarmFlagId, true, 'boolean');
+                ensureState(lastMsgId, 'ALARM', 'string');
+            }
+
+            // Reset Flags, wenn wieder OK
+            if (status === 'OK') {
+                ensureState(warnFlagId, false, 'boolean');
+                ensureState(alarmFlagId, false, 'boolean');
+                ensureState(lastMsgId, 'OK', 'string');
+            }
         });
-        ensureState(warnId, true, 'boolean');
-      }
-
-      /* 🔴 LEER */
-      if (
-        status === 'LEER' &&
-        !alarmed &&
-        isPrinting()
-      ) {
-        sendTo('telegram', 'send', {
-          text:
-`🔴 Filament leer!
-
-🖨 Extruder: ${ext.name}
-🧵 ${spool.name}
-🎨 ${spool.material}
-📦 Rest: ${spool.remaining} g
-
-⚠️ Filament wechseln!`
-        });
-        ensureState(alarmId, true, 'boolean');
-      }
-
-      /* Reset */
-      if (status === 'OK') {
-        ensureState(warnId, false, 'boolean');
-        ensureState(alarmId, false, 'boolean');
-      }
     });
-  });
 }
 
-/* ==========================================================
-   SCHEDULER
-   ========================================================== */
+/* ========================= SCHEDULER ========================= */
 
 schedule(CONFIG.schedule, update);
 update();
