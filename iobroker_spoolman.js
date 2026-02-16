@@ -1,15 +1,40 @@
 /**
  * ============================================================
- * ioBroker – Klipper – Spoolman Integration (verbessert)
+ * ioBroker – Klipper – Spoolman Integration
  * ============================================================
  *
- * Änderungen:
- * - Etwas robusterer Umgang mit leerer/fehlerhafter DB-Ausgabe
- * - Trennung von "technischem Status" und "letzter Meldung"
- * - Konsistente Verwendung von template-Strings
- * - Kleine Lesbarkeitsverbesserungen
+ * @version     2.0.0 (2026-02-16)
+ * @author      Negalein
+ * @copyright   Copyright (c) 2026 Negalein
+ * @license     MIT License - https://opensource.org/licenses/MIT
+ * @repository  https://github.com/Negalein/iobroker_spoolman
+ *
+ * ============================================================
+ * VERSIONSHISTORIE
+ * ============================================================
+ * 1.0.0 (2025) - Initial Release
+ *   • Erste Version mit Basis-Funktionalität
+ *   • Ampel-Logik + Telegram-Warnungen
+ *
+ * 2.0.0 (2026-02-16) - NULL-FIX Release
+ *   • ✅ FIX: "Spule null nicht in Spoolman gefunden" behoben
+ *   • ✅ String spool_id korrekt in Zahl umgewandelt  
+ *   • ✅ Robusterer Umgang mit ungültigen Moonraker-Werten
+ *   • ✅ Zusätzliche Status: NONE/MISSING für VIS-Anzeige
+ *   • ✅ Null-Safety für remaining_weight (NaN verhinder)
+ *   • 🔧 Code-Optimierungen (Performance + Lesbarkeit)
+ *
+ * ============================================================
+ * FUNKTIONEN
+ * ============================================================
+ * - Liest aktive Spulen-IDs aus Klipper (Moonraker)
+ * - Holt Restfilament aus Spoolman (SQLite per SSH)
+ * - Erstellt automatisch ioBroker-States (VIS-ready)
+ * - Ampel-Logik: 🟢OK 🟡WARN 🔴LEER
+ * - Telegram-Warnungen mit Zeit-/Druck-Logik
  * ============================================================
  */
+
 
 const { exec } = require('child_process');
 
@@ -147,16 +172,20 @@ function update() {
         CONFIG.extruders.forEach((ext, index) => {
             const slot = `${base}.aktiv.${index + 1}`;
 
-            const spoolIdState = getState(ext.state);
-            const spoolId = spoolIdState ? spoolIdState.val : 0;
+const spoolIdState = getState(ext.state);
+let spoolId = spoolIdState ? spoolIdState.val : 0;
 
-            if (!spoolId || spoolId <= 0) {
-                // Keine Spule aktiv
-                ensureState(`${slot}.active`, false, 'boolean');
-                ensureState(`${slot}.status`, 'NONE', 'string');
-                return;
-            }
+// Falls der Adapter komische Werte liefert, in 0 umwandeln
+if (spoolId === 'null' || spoolId === 'undefined' || spoolId === '' || spoolId === null || spoolId === undefined) {
+    spoolId = 0;
+}
 
+if (!spoolId || Number(spoolId) <= 0) {
+    // Keine Spule aktiv
+    ensureState(`${slot}.active`, false, 'boolean');
+    ensureState(`${slot}.status`, 'NONE', 'string');
+    return;
+}
             const spool = spools.find(s => String(s.spool_id) === String(spoolId));
 
             if (!spool) {
