@@ -35,7 +35,7 @@ Liest aktive Spulen aus Moonraker, holt Restmengen aus Spoolman (SSH/SQLite) und
 
 ## ⚙️ Konfiguration
 
-```javascript
+```
 const CONFIG = {
     spoolman: {
         sshHost: 'root@10.0.1.148',  // ← Deine IP!
@@ -49,8 +49,12 @@ const CONFIG = {
     },
     schedule: '*/5 * * * *'  // Alle 5 Minuten
 };
+```
+
 📊 States Struktur (automatisch)
-text
+
+
+```
 0_userdata.0.3DDrucker.Spoolman/
 ├── warnzeit_aktiv (boolean)
 ├── druck_laeuft (boolean)
@@ -68,8 +72,11 @@ text
 ├── aktiv.2/ [T1]
 ├── aktiv.3/ [T2]
 └── aktiv.4/ [T3]
+```
+
 🎨 VIS Farben
-json
+
+```
 {
   "datapath": "0_userdata.0.3DDrucker.Spoolman.aktiv.*.status",
   "color": {
@@ -80,45 +87,57 @@ json
     "MISSING": "#ff8800"
   }
 }
+```
+
 🔔 Telegram Meldungen
 🟡 WARN (unter 300g während Druck):
 
-text
+```
 🟡 Filament wird knapp
 🖨 Extruder: T0
 🧵 PLA Testspule
 🎨 PLA
 📦 Rest: 280 g
+```
+
 🔴 ALARM (unter 100g während Druck):
 
-text
+```
 🔴 Filament leer!
 🖨 Extruder: T0
 🧵 PLA Testspule
 📦 Rest: 85 g
 ⚠️ Filament wechseln!
+```
+
 🔍 Troubleshooting
-Problem	Lösung
-Spule null nicht gefunden	✅ v2.0.0 Fix - Skript aktualisieren
-Spoolman SSH Fehler	SSH-Key ohne Passwort einrichten
-Keine States	baseState Pfad prüfen
-Keine Telegram	Telegram Bot Token prüfen
-Status bleibt NONE	klipper-moonraker.0.gcode_macro T0.spool_id prüfen
+
+| Problem | Lösung |
+|---------|--------|
+| Spule null nicht gefunden | ✅ v2.0.0 Fix - Skript aktualisieren |
+| Spoolman SSH Fehler | SSH-Key ohne Passwort einrichten |
+| Keine States | baseState Pfad prüfen |
+| Keine Telegram | Telegram Bot Token prüfen |
+| Status bleibt NONE | klipper-moonraker.0.gcode_macro T0.spool_id prüfen |
+
 📈 Changelog
-Version	Datum	Highlights
-2.0.0	2026-02-16	"Spule null" Fix, String→Number, Status NONE/MISSING, Null-Safety
-1.0.0	2025	Initial Release
+
+| **Version** | **Datum** | **Highlights** |
+|---------|--------|--------|
+| 2.0.0 | 2026-02-16 | "Spule null" Fix, String→Number, Status NONE/MISSING, Null-Safety |
+| 1.0.0 | 2025 | Initial Release |
+
 🤝 Contributing
-Fork Repository
 
-git checkout -b feature/xyz
-
-Commit & Push
-
-Pull Request
+1. Fork Repository
+2. git checkout -b feature/xyz
+3. Commit & Push
+4. Pull Request
 
 📄 License
-MIT License © 2026 Negalein (Münzkirchen, AT)
+**MIT License** © 2026 Negalein (Münzkirchen, AT)
+
+---
 
 ⭐ Star wenn hilfreich!
 💬 Issues: github.com/Negalein/iobroker_spoolman/issues
