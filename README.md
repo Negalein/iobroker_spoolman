@@ -135,7 +135,7 @@ const CONFIG = {
 4. Pull Request
 
 📄 License
-**MIT License** © 2026 Negalein (Münzkirchen, AT)
+**MIT License** © 2026 Negalein (AT)
 
 ---
 
