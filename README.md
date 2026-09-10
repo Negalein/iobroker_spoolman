@@ -6,6 +6,32 @@
 
 Liest aktive Spulen aus Moonraker, holt Restmengen aus Spoolman (SSH/SQLite) und warnt per Telegram bei Knappheit oder Leerung. **VIS-ready States + Ampel-Logik.**
 
+Neu in 
+
+**🖨️ Spoolman Monitor für Snapmaker U1 / PAXx / ioBroker**
+
+Überwache die aktiven Filamentspulen deines Snapmaker U1 mit Spoolman, PAXx, Klipper/Moonraker und ioBroker.
+
+Das Script erkennt automatisch bis zu 4 aktive AFC-Lanes, liest die jeweilige Spool-ID aus dem klipper-moonraker Adapter, ermittelt das Restgewicht direkt aus der Spoolman-Datenbank und stellt alle Informationen als ioBroker-Datenpunkte für VIS, Automatisierungen und Telegram-Warnungen bereit.
+
+✨ Funktionen
+🖨️ Unterstützung für Snapmaker U1
+🔄 Unterstützung für PAXx / AFC
+🧵 Überwachung von bis zu 4 Spulen gleichzeitig
+🔍 Automatisches Auslesen der aktiven Spool-ID
+📦 Restfilament direkt aus Spoolman
+🟢🟡🔴 Automatische Statusbewertung
+🔔 Telegram-Vorwarnung bei niedrigem Filamentbestand
+🚨 Telegram-Alarm bei fast leerem Filament
+🕒 Konfigurierbare Warnzeiten
+📅 Unterschiedliche Warnzeiten für Wochentage und Wochenende
+🖨️ Warnungen nur während eines aktiven Drucks
+🔄 Sofortige Erkennung eines Spulenwechsels
+⏱️ Automatische Aktualisierung alle 5 Minuten
+🧠 Automatische Erstellung aller benötigten ioBroker-Datenpunkte
+🛡️ Schutz vor parallelen Updates
+📊 Perfekte Grundlage für eine VIS-Ansicht
+
 ## ✨ Features
 
 | Feature | Status |
