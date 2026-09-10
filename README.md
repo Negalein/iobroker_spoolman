@@ -6,7 +6,7 @@
 
 Liest aktive Spulen aus Moonraker, holt Restmengen aus Spoolman (SSH/SQLite) und warnt per Telegram bei Knappheit oder Leerung. **VIS-ready States + Ampel-Logik.**
 
-Neu in 
+# Neu in iobroker_spoolman_AFC.js
 
 **🖨️ Spoolman Monitor für Snapmaker U1 / PAXx / ioBroker**
 
@@ -31,6 +31,8 @@ Das Script erkennt automatisch bis zu 4 aktive AFC-Lanes, liest die jeweilige Sp
 🧠 Automatische Erstellung aller benötigten ioBroker-Datenpunkte
 🛡️ Schutz vor parallelen Updates
 📊 Perfekte Grundlage für eine VIS-Ansicht
+
+---
 
 ## ✨ Features
 
